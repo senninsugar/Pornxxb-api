@@ -1,3 +1,1 @@
-flask
-yt-dlp
-gunicorn
+web: gunicorn app:app
