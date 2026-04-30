@@ -46,16 +46,30 @@ def proxy_video():
     
     headers = {
         'User-Agent': USER_AGENT,
-        'Referer': 'https://www.pornhub.com/'
+        'Referer': 'https://www.pornhub.com/',
+        'Range': request.headers.get('Range', '')
     }
 
     # プロキシ経由でストリームデータを取得し、そのままユーザーに流す（ストリーミング）
-    req = requests.get(stream_url, proxies=proxies, headers=headers, stream=True, verify=False)
+    # verify=FalseでSSL検証をスキップし、接続エラーを回避
+    req = requests.get(stream_url, proxies=proxies, headers=headers, stream=True, verify=False, timeout=15)
     
+    # 応答ヘッダーの構築（Node.jsプロキシの挙動に合わせ、必要なメタデータのみを転送）
+    excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
+    response_headers = [
+        (name, value) for (name, value) in req.raw.headers.items()
+        if name.lower() not in excluded_headers
+    ]
+
+    def generate():
+        for chunk in req.iter_content(chunk_size=65536):
+            yield chunk
+
     return Response(
-        req.iter_content(chunk_size=1024*10),
+        generate(),
+        status=req.status_code,
         content_type=req.headers.get('Content-Type'),
-        headers={key: value for key, value in req.headers.items() if key.lower() in ['content-length', 'content-range', 'accept-ranges']}
+        headers=response_headers
     )
 
 if __name__ == "__main__":
