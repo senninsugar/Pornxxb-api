@@ -2,3 +2,4 @@ fastapi
 uvicorn
 pornhub-api
 yt-dlp
+gunicorn
