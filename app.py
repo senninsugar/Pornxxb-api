@@ -118,7 +118,24 @@ def search_videos():
         search_url = f"https://www.pornhub.com/video/search?search={query}"
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(search_url, download=False)
-            return jsonify(info)
+            
+            # 検索結果から必要な情報（タイトル、ID、サムネイル、アップローダー）を抽出
+            results = []
+            if 'entries' in info:
+                for entry in info['entries']:
+                    results.append({
+                        "id": entry.get("id"),
+                        "title": entry.get("title"),
+                        "thumbnail": entry.get("thumbnail"),
+                        "uploader": entry.get("uploader"),
+                        "duration": entry.get("duration"),
+                        "view_count": entry.get("view_count")
+                    })
+            
+            return jsonify({
+                "query": query,
+                "results": results
+            })
     except Exception as e:
         return jsonify({
             "error": "Failed to search videos",
