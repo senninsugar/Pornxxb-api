@@ -3,3 +3,4 @@ uvicorn
 pornhub-api
 yt-dlp
 gunicorn
+pydantic>=2.0.0
