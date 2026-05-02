@@ -4,7 +4,6 @@ import os
 
 app = Flask(__name__)
 
-# ルートディレクトリにアクセスした際の確認用
 @app.route('/')
 def index():
     return jsonify({
@@ -15,23 +14,19 @@ def index():
 
 @app.route('/get_info')
 def get_info():
-    # クエリパラメータから動画URLを取得
     video_url = request.args.get('url')
     
     if not video_url:
         return jsonify({"error": "Missing 'url' parameter"}), 400
 
-    # 指定されたプロキシサーバー
     proxy_url = "http://ytproxy-siawaseok.duckdns.org:3007"
 
-    # yt-dlpのオプション設定
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
         'proxy': proxy_url,
         'nocheckcertificate': True,
-        'format': 'best', # 最良の画質を選択
-        # Pornhubのブロックを回避するための偽装ヘッダー
+        'format': 'best',
         'referer': 'https://www.pornhub.com/',
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -42,20 +37,15 @@ def get_info():
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # 情報を抽出（download=Falseでメタデータのみ取得）
             info = ydl.extract_info(video_url, download=False)
-            
-            # 抽出した情報をJSONとして返却
             return jsonify(info)
             
     except Exception as e:
-        # エラー発生時の詳細を返却
         return jsonify({
             "error": "Failed to extract video information",
             "details": str(e)
         }), 500
 
-# 追加されたストリーム情報取得用エンドポイント
 @app.route('/api/v1/stream/<video_id>')
 def get_stream_info(video_id):
     video_url = f"https://www.pornhub.com/view_video.php?viewkey={video_id}"
@@ -77,10 +67,9 @@ def get_stream_info(video_id):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=False)
             
-            # HLSストリームURL、タイトル、サムネイルを抽出して返却
             return jsonify({
                 "title": info.get("title"),
-                "url": info.get("url"), # HLSストリームURL
+                "url": info.get("url"),
                 "thumbnail": info.get("thumbnail"),
                 "duration": info.get("duration"),
                 "uploader": info.get("uploader")
@@ -92,7 +81,6 @@ def get_stream_info(video_id):
             "details": str(e)
         }), 500
 
-# 動画検索用エンドポイント
 @app.route('/search')
 def search_videos():
     query = request.args.get('q')
@@ -106,7 +94,7 @@ def search_videos():
         'no_warnings': True,
         'proxy': proxy_url,
         'nocheckcertificate': True,
-        'extract_flat': True,  # 検索結果の一覧のみ取得（高速化）
+        'extract_flat': False,
         'referer': 'https://www.pornhub.com/',
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -114,22 +102,17 @@ def search_videos():
     }
 
     try:
-        # スキームエラーを回避するため検索URLを直接使用
         search_url = f"https://www.pornhub.com/video/search?search={query}"
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(search_url, download=False)
             
-            # 検索結果から必要な情報（タイトル、ID、サムネイル、アップローダー）を抽出
             results = []
             if 'entries' in info:
                 for entry in info['entries']:
                     results.append({
-                        "id": entry.get("id"),
                         "title": entry.get("title"),
-                        "thumbnail": entry.get("thumbnail"),
-                        "uploader": entry.get("uploader"),
-                        "duration": entry.get("duration"),
-                        "view_count": entry.get("view_count")
+                        "url": entry.get("url") if entry.get("url") else (f"https://www.pornhub.com/view_video.php?viewkey={entry.get('id')}" if entry.get('id') else None),
+                        "thumbnail": entry.get("thumbnail")
                     })
             
             return jsonify({
@@ -143,6 +126,5 @@ def search_videos():
         }), 500
 
 if __name__ == "__main__":
-    # Renderが指定するポート番号、または5000番で起動
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
