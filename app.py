@@ -95,6 +95,7 @@ def search_videos():
         'proxy': proxy_url,
         'nocheckcertificate': True,
         'extract_flat': False,
+        'playlist_items': '1-10',  # メモリ節約のため上位10件のみに制限
         'referer': 'https://www.pornhub.com/',
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
