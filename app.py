@@ -114,8 +114,8 @@ def search_videos():
     }
 
     try:
-        # phsearchキーワードを使用して検索（デフォルトで20件程度）
-        search_url = f"phsearch:{query}"
+        # スキームエラーを回避するため検索URLを直接使用
+        search_url = f"https://www.pornhub.com/video/search?search={query}"
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(search_url, download=False)
             return jsonify(info)
