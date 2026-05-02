@@ -1,6 +1,7 @@
 fastapi
 uvicorn
-pornhub-api
 yt-dlp
 gunicorn
+pornhub-api --no-deps
 pydantic>=2.0.0
+requests
