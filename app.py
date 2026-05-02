@@ -1,77 +1,61 @@
-from flask import Flask, request, Response, jsonify
+from flask import Flask, request, jsonify
 import yt_dlp
-import requests
 import os
 
 app = Flask(__name__)
 
-# 指定されたプロキシ
-PROXY_URL = "http://ytproxy-siawaseok.duckdns.org:3007"
-USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
+# ルートディレクトリにアクセスした際の確認用
+@app.route('/')
+def index():
+    return jsonify({
+        "status": "online",
+        "message": "yt-dlp JSON API for Pornhub is running",
+        "proxy": "active"
+    })
 
 @app.route('/get_info')
 def get_info():
+    # クエリパラメータから動画URLを取得
     video_url = request.args.get('url')
+    
     if not video_url:
-        return jsonify({"error": "Missing url"}), 400
+        return jsonify({"error": "Missing 'url' parameter"}), 400
 
+    # 指定されたプロキシサーバー
+    proxy_url = "http://ytproxy-siawaseok.duckdns.org:3007"
+
+    # yt-dlpのオプション設定
     ydl_opts = {
         'quiet': True,
-        'proxy': PROXY_URL,
-        'user_agent': USER_AGENT,
-        'referer': 'https://www.pornhub.com/',
+        'no_warnings': True,
+        'proxy': proxy_url,
         'nocheckcertificate': True,
+        'format': 'best', # 最良の画質を選択
+        # Pornhubのブロックを回避するための偽装ヘッダー
+        'referer': 'https://www.pornhub.com/',
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'ja,en-US;q=0.7,en;q=0.3',
+        }
     }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            # 情報を抽出（download=Falseでメタデータのみ取得）
             info = ydl.extract_info(video_url, download=False)
-            # JSON内のストリームURLを、このサーバー経由のプロキシURLに書き換える（簡易版）
+            
+            # 抽出した情報をJSONとして返却
             return jsonify(info)
+            
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# 動画データそのものをプロキシ経由で中継する
-@app.route('/proxy_video')
-def proxy_video():
-    # JSONで取得した「本物のストリームURL」をここに入れる
-    stream_url = request.args.get('stream_url')
-    if not stream_url:
-        return "Missing stream_url", 400
-
-    proxies = {
-        "http": PROXY_URL,
-        "https": PROXY_URL,
-    }
-    
-    headers = {
-        'User-Agent': USER_AGENT,
-        'Referer': 'https://www.pornhub.com/',
-        'Range': request.headers.get('Range', '')
-    }
-
-    # プロキシ経由でストリームデータを取得し、そのままユーザーに流す（ストリーミング）
-    # verify=FalseでSSL検証をスキップし、接続エラーを回避
-    req = requests.get(stream_url, proxies=proxies, headers=headers, stream=True, verify=False, timeout=15)
-    
-    # 応答ヘッダーの構築（Node.jsプロキシの挙動に合わせ、必要なメタデータのみを転送）
-    excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-    response_headers = [
-        (name, value) for (name, value) in req.raw.headers.items()
-        if name.lower() not in excluded_headers
-    ]
-
-    def generate():
-        for chunk in req.iter_content(chunk_size=65536):
-            yield chunk
-
-    return Response(
-        generate(),
-        status=req.status_code,
-        content_type=req.headers.get('Content-Type'),
-        headers=response_headers
-    )
+        # エラー発生時の詳細を返却
+        return jsonify({
+            "error": "Failed to extract video information",
+            "details": str(e)
+        }), 500
 
 if __name__ == "__main__":
+    # Renderが指定するポート番号、または5000番で起動
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
