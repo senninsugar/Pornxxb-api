@@ -1,4 +1,4 @@
-flask
+fastapi
+uvicorn
+pornhub-api
 yt-dlp
-requests
-gunicorn
