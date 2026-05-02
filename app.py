@@ -94,8 +94,7 @@ def search_videos():
         'no_warnings': True,
         'proxy': proxy_url,
         'nocheckcertificate': True,
-        'extract_flat': False,
-        'playlist_items': '1-10',  # メモリ節約のため上位10件のみに制限
+        'extract_flat': True,
         'referer': 'https://www.pornhub.com/',
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -111,9 +110,12 @@ def search_videos():
             if 'entries' in info:
                 for entry in info['entries']:
                     results.append({
+                        "id": entry.get("id"),
                         "title": entry.get("title"),
-                        "url": entry.get("url") if entry.get("url") else (f"https://www.pornhub.com/view_video.php?viewkey={entry.get('id')}" if entry.get('id') else None),
-                        "thumbnail": entry.get("thumbnail")
+                        "thumbnail": entry.get("thumbnail"),
+                        "uploader": entry.get("uploader"),
+                        "duration": entry.get("duration"),
+                        "view_count": entry.get("view_count")
                     })
             
             return jsonify({
