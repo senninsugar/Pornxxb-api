@@ -4,6 +4,7 @@ import os
 
 app = Flask(__name__)
 
+# ルートディレクトリにアクセスした際の確認用
 @app.route('/')
 def index():
     return jsonify({
@@ -14,19 +15,23 @@ def index():
 
 @app.route('/get_info')
 def get_info():
+    # クエリパラメータから動画URLを取得
     video_url = request.args.get('url')
     
     if not video_url:
         return jsonify({"error": "Missing 'url' parameter"}), 400
 
+    # 指定されたプロキシサーバー
     proxy_url = "http://ytproxy-siawaseok.duckdns.org:3007"
 
+    # yt-dlpのオプション設定
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
         'proxy': proxy_url,
         'nocheckcertificate': True,
-        'format': 'best',
+        'format': 'best', # 最良の画質を選択
+        # Pornhubのブロックを回避するための偽装ヘッダー
         'referer': 'https://www.pornhub.com/',
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -37,97 +42,20 @@ def get_info():
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            # 情報を抽出（download=Falseでメタデータのみ取得）
             info = ydl.extract_info(video_url, download=False)
+            
+            # 抽出した情報をJSONとして返却
             return jsonify(info)
             
     except Exception as e:
+        # エラー発生時の詳細を返却
         return jsonify({
             "error": "Failed to extract video information",
             "details": str(e)
         }), 500
 
-@app.route('/api/v1/stream/<video_id>')
-def get_stream_info(video_id):
-    video_url = f"https://www.pornhub.com/view_video.php?viewkey={video_id}"
-    proxy_url = "http://ytproxy-siawaseok.duckdns.org:3007"
-
-    ydl_opts = {
-        'quiet': True,
-        'no_warnings': True,
-        'proxy': proxy_url,
-        'nocheckcertificate': True,
-        'format': 'best',
-        'referer': 'https://www.pornhub.com/',
-        'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        }
-    }
-
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(video_url, download=False)
-            
-            return jsonify({
-                "title": info.get("title"),
-                "url": info.get("url"),
-                "thumbnail": info.get("thumbnail"),
-                "duration": info.get("duration"),
-                "uploader": info.get("uploader")
-            })
-            
-    except Exception as e:
-        return jsonify({
-            "error": "Failed to extract stream information",
-            "details": str(e)
-        }), 500
-
-@app.route('/search')
-def search_videos():
-    query = request.args.get('q')
-    if not query:
-        return jsonify({"error": "Missing 'q' parameter"}), 400
-
-    proxy_url = "http://ytproxy-siawaseok.duckdns.org:3007"
-    
-    ydl_opts = {
-        'quiet': True,
-        'no_warnings': True,
-        'proxy': proxy_url,
-        'nocheckcertificate': True,
-        'extract_flat': True,
-        'referer': 'https://www.pornhub.com/',
-        'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        }
-    }
-
-    try:
-        search_url = f"https://www.pornhub.com/video/search?search={query}"
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(search_url, download=False)
-            
-            results = []
-            if 'entries' in info:
-                for entry in info['entries']:
-                    results.append({
-                        "id": entry.get("id"),
-                        "title": entry.get("title"),
-                        "thumbnail": entry.get("thumbnail"),
-                        "uploader": entry.get("uploader"),
-                        "duration": entry.get("duration"),
-                        "view_count": entry.get("view_count")
-                    })
-            
-            return jsonify({
-                "query": query,
-                "results": results
-            })
-    except Exception as e:
-        return jsonify({
-            "error": "Failed to search videos",
-            "details": str(e)
-        }), 500
-
 if __name__ == "__main__":
+    # Renderが指定するポート番号、または5000番で起動
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
